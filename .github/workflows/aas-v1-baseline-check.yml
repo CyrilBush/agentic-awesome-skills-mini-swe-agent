@@ -1,0 +1,53 @@
+name: AAS v1 baseline freeze
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+
+jobs:
+  baseline-freeze:
+    name: aas-v1-baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate baseline
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install verifier dependencies from lockfile
+        run: npm --prefix verification/aas-v1/verifier ci --ignore-scripts
+
+      - name: Run reference metric tests
+        run: npm --prefix verification/aas-v1/verifier test
+
+      - name: Validate data schemas
+        run: npm --prefix verification/aas-v1/verifier run check:schemas
+
+      - name: Validate baseline structure
+        run: npm --prefix verification/aas-v1/verifier run check:structure
+
+      - name: Validate frozen primary benchmark corpus
+        run: npm --prefix verification/aas-v1/verifier run check:benchmark:frozen
+
+      - name: Validate frozen secondary corpora
+        run: npm --prefix verification/aas-v1/verifier run check:secondary:frozen
+
+      - name: Verify hostile fixtures
+        run: node verification/aas-v1/baseline/v1/hostile/verify-fixtures.mjs
+
+      - name: Validate legacy 14.6.0 snapshots
+        run: node verification/aas-v1/baseline/v1/legacy/14.6.0/validate-snapshots.mjs
+
+      - name: Check freeze readiness
+        run: npm --prefix verification/aas-v1/verifier run check:freeze-ready
+
+      - name: Check content-addressed freeze manifest
+        run: npm --prefix verification/aas-v1/verifier run freeze:check
